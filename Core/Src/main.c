@@ -75,6 +75,11 @@ static void MX_TIM3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+uint8_t rx = 0;
+unsigned volatile int wl = 100;
+unsigned volatile int wp = 100;
+unsigned volatile int wl_old;
+unsigned volatile int wp_old;
 int __io_putchar(int ch)
 {
     if (ch == '\n') {
@@ -99,6 +104,40 @@ int __io_getchar(void) {
 
     return ch;
 }
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+	if(rx == 0x77) {
+		wl_old = wl++;
+//		LCD_2IN4_SetWindow(wl, 20, wl+1, 20+8);
+//		for(int i=0; i<8; i++) {
+//			LCD_2IN4_WriteData_Word(BLACK);
+//		}
+	}
+	if(rx == 0x73) {
+		wl_old = wl--;
+//		LCD_2IN4_SetWindow(wl+80, 20, wl+81, 20+8);
+//		for(int i=0; i<8; i++) {
+//			LCD_2IN4_WriteData_Word(BLACK);
+//		}
+	}
+	if(rx == 0x6F) {
+		wp_old = wp++;
+//		LCD_2IN4_SetWindow(wp, 20, wp+1, 20+8);
+//		for(int i=0; i<8; i++) {
+//			LCD_2IN4_WriteData_Word(BLACK);
+//		}
+	}
+	if(rx == 0x6C) {
+		wp_old = wp--;
+//		LCD_2IN4_SetWindow(wp+80, 20, wp+81, 20+8);
+//		for(int i=0; i<8; i++) {
+//			LCD_2IN4_WriteData_Word(BLACK);
+//		}
+	}
+}
+void draw_pixel(int x, int y, uint16_t color){
+     LCD_2IN4_SetWindow(x, y, x+1, y+1);
+     LCD_2IN4_WriteData_Word(color);
+ }
 /* USER CODE END 0 */
 
 /**
@@ -137,6 +176,9 @@ int main(void)
   /* USER CODE BEGIN 2 */
   setvbuf(stdin, NULL, _IONBF, 0);
   setvbuf(stdout, NULL, _IONBF, 0);
+
+  HAL_UART_Receive_IT(&huart2, &rx, 1);
+
   LCD_2in4_test();
 
 #define SIZE 6
@@ -151,7 +193,7 @@ int main(void)
 	  //20 - starting point poziomo
 	  //szerokość: 8
 	  //długość: 80
-	  LCD_2IN4_SetWindow(100, 20, 100+80, 20+8);
+	  LCD_2IN4_SetWindow(wl, 20, wl+80, 20+8);
 	  for(int i=0; i<80*8; i++) {
 		  LCD_2IN4_WriteData_Word(WHITE);
 	  }
@@ -161,12 +203,37 @@ int main(void)
 	  //300 - starting point poziomo
 	  //szerokość: 8
 	  //długość: 80
-	  LCD_2IN4_SetWindow(100, 300, 100+80, 300+8);
+	  LCD_2IN4_SetWindow(wp, 300, wp+80, 300+8);
 	  for(int i=0; i<80*8; i++) {
 		  LCD_2IN4_WriteData_Word(WHITE);
 	  }
 
 	  while(1) {
+		  HAL_UART_Receive_IT(&huart2, &rx, 1);
+
+		  if(wl_old != wl) {
+			  LCD_2IN4_SetWindow(wl_old, 20, wl_old+80, 20+8);
+			  for(int i=0; i<80*8; i++) {
+				  LCD_2IN4_WriteData_Word(BLACK);
+			  }
+		  }
+
+		  if(wp_old != wp) {
+			  LCD_2IN4_SetWindow(wp_old, 300, wp_old+80, 300+8);
+			  for(int i=0; i<80*8; i++) {
+				  LCD_2IN4_WriteData_Word(BLACK);
+			  }
+		  }
+
+		  LCD_2IN4_SetWindow(wl, 20, wl+80, 20+8);
+		  for(int i=0; i<80*8; i++) {
+			  LCD_2IN4_WriteData_Word(WHITE);
+		  }
+
+		  LCD_2IN4_SetWindow(wp, 300, wp+80, 300+8);
+		  for(int i=0; i<80*8; i++) {
+			  LCD_2IN4_WriteData_Word(WHITE);
+		  }
 
 		  LCD_2IN4_SetWindow(x, y, x+SIZE, y+SIZE);
 		  for(int i = 0; i < SIZE*SIZE; i++)
@@ -185,11 +252,11 @@ int main(void)
 		  if(y <= 0 || y + SIZE >= 320) y=170;
 
 		  // Bounce off paletki
-		  if(y == 292 && x > 90 && x < 190) {
+		  if(y == 292 && x > wl-10 && x < wl+90) {
 			  dy = -dy;
 		  }
 
-		  if(y == 28 && x > 90 && x < 190) {
+		  if(y == 28 && x > wp-10 && x < wp+90) {
 			  dy = -dy;
 		  }
 
@@ -200,7 +267,7 @@ int main(void)
 
 		  draw_pixel(2,2,MAGENTA);
 
-		  HAL_Delay(5); // Adjust speed
+		  HAL_Delay(1); // Adjust speed
 	  }
   }
   Demo();
