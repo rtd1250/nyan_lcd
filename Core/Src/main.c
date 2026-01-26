@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2026 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -27,6 +27,7 @@
 #include "waveshare/LCD_Test.h"
 #include "waveshare/LCD_2inch4.h"
 #include "waveshare/DEV_Config.h"
+#include "buzzer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,11 +51,15 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc2;
+
 RTC_HandleTypeDef hrtc;
 
 SPI_HandleTypeDef hspi1;
 
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart2;
 
@@ -64,11 +69,15 @@ UART_HandleTypeDef huart2;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void PeriphCommonClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_RTC_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_TIM4_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_ADC2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -76,68 +85,106 @@ static void MX_TIM3_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 uint8_t rx = 0;
-unsigned volatile int wl = 100;
-unsigned volatile int wp = 100;
-unsigned volatile int wl_old;
-unsigned volatile int wp_old;
+uint32_t value = 0;
+uint32_t value2 = 0;
+int divider = 0;
+volatile int wl = 100;
+volatile int wp = 100;
+
 int __io_putchar(int ch)
 {
-    if (ch == '\n') {
-        uint8_t ch2 = '\r';
-        HAL_UART_Transmit(&huart2, &ch2, 1, HAL_MAX_DELAY);
-    }
-    HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, HAL_MAX_DELAY);
-    return 1;
+	if (ch == '\n') {
+		uint8_t ch2 = '\r';
+		HAL_UART_Transmit(&huart2, &ch2, 1, HAL_MAX_DELAY);
+	}
+	HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, HAL_MAX_DELAY);
+	return 1;
 }
 
 int __io_getchar(void) {
-    uint8_t ch = 0;
+	uint8_t ch = 0;
 
-    HAL_UART_Receive(&huart2, &ch, 1, HAL_MAX_DELAY);
+	HAL_UART_Receive(&huart2, &ch, 1, HAL_MAX_DELAY);
 
-    if(ch == '\r') {
-        HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, 10);
-        return '\n';
-    }
+	if(ch == '\r') {
+		HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, 10);
+		return '\n';
+	}
 
-    HAL_UART_Transmit(&huart2, &ch, 1, 100);
+	HAL_UART_Transmit(&huart2, &ch, 1, 100);
 
-    return ch;
+	return ch;
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	if(rx == 0x77) {
-		wl_old = wl++;
-//		LCD_2IN4_SetWindow(wl, 20, wl+1, 20+8);
-//		for(int i=0; i<8; i++) {
-//			LCD_2IN4_WriteData_Word(BLACK);
-//		}
+		wl = wl+10;
+		if(wl+80>240) wl=160;
+		//		LCD_2IN4_SetWindow(wl, 20, wl+1, 20+8);
+		//		for(int i=0; i<8; i++) {
+		//			LCD_2IN4_WriteData_Word(BLACK);
+		//		}
 	}
 	if(rx == 0x73) {
-		wl_old = wl--;
-//		LCD_2IN4_SetWindow(wl+80, 20, wl+81, 20+8);
-//		for(int i=0; i<8; i++) {
-//			LCD_2IN4_WriteData_Word(BLACK);
-//		}
+		wl = wl-10;
+		if(wl<0) wl=0;
+		//		LCD_2IN4_SetWindow(wl+80, 20, wl+81, 20+8);
+		//		for(int i=0; i<8; i++) {
+		//			LCD_2IN4_WriteData_Word(BLACK);
+		//		}
 	}
 	if(rx == 0x6F) {
-		wp_old = wp++;
-//		LCD_2IN4_SetWindow(wp, 20, wp+1, 20+8);
-//		for(int i=0; i<8; i++) {
-//			LCD_2IN4_WriteData_Word(BLACK);
-//		}
+		wp = wp+10;
+		if(wp+80>240) wp=160;
+		//		LCD_2IN4_SetWindow(wp, 20, wp+1, 20+8);
+		//		for(int i=0; i<8; i++) {
+		//			LCD_2IN4_WriteData_Word(BLACK);
+		//		}
 	}
 	if(rx == 0x6C) {
-		wp_old = wp--;
-//		LCD_2IN4_SetWindow(wp+80, 20, wp+81, 20+8);
-//		for(int i=0; i<8; i++) {
-//			LCD_2IN4_WriteData_Word(BLACK);
-//		}
+		wp = wp-10;
+		if(wp<0) wp=0;
+		//		LCD_2IN4_SetWindow(wp+80, 20, wp+81, 20+8);
+		//		for(int i=0; i<8; i++) {
+		//			LCD_2IN4_WriteData_Word(BLACK);
+		//		}
 	}
+	HAL_UART_Receive_IT(&huart2, &rx, 1);
 }
-void draw_pixel(int x, int y, uint16_t color){
-     LCD_2IN4_SetWindow(x, y, x+1, y+1);
-     LCD_2IN4_WriteData_Word(color);
- }
+
+void Buzzer_SetTone(uint32_t freq_hz, uint8_t volume)
+{
+	if (freq_hz == 0)
+	{
+		__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, 0);
+		return;
+	}
+
+	// STM32L4 Helper: Get the actual system clock (usually 80 MHz)
+	// You can also hardcode this to 80000000 if you prefer.
+	uint32_t timer_clock = 80000000;
+
+	// CALCULATE PRESCALER (PSC)
+	// We aim for a timer tick rate of 1 MHz (1,000,000 Hz) for good resolution.
+	// 80 MHz / 80 = 1 MHz. So PSC should be 79.
+	uint32_t prescaler_value = (timer_clock / 1000000) - 1;
+
+	// CALCULATE PERIOD (ARR)
+	// Now that our timer ticks at 1 MHz, the math is simple:
+	// 1,000,000 ticks per second / Desired Frequency = Total Ticks per Cycle
+	uint32_t period_value = (1000000 / freq_hz) - 1;
+
+	// CALCULATE PULSE (CCR)
+	// Duty cycle (Volume). 50 is standard.
+	uint32_t pulse_value = (period_value * volume) / 100;
+
+	// Apply settings
+	__HAL_TIM_SET_PRESCALER(&htim4, prescaler_value);
+	__HAL_TIM_SET_AUTORELOAD(&htim4, period_value);
+	__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, pulse_value);
+
+	// Trigger update to apply changes immediately
+	HAL_TIM_GenerateEvent(&htim4, TIM_EVENTSOURCE_UPDATE);
+}
 /* USER CODE END 0 */
 
 /**
@@ -163,6 +210,9 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
+  /* Configure the peripherals common clocks */
+  PeriphCommonClock_Config();
+
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
@@ -173,20 +223,63 @@ int main(void)
   MX_SPI1_Init();
   MX_USART2_UART_Init();
   MX_TIM3_Init();
+  MX_TIM4_Init();
+  MX_ADC1_Init();
+  MX_ADC2_Init();
   /* USER CODE BEGIN 2 */
-  setvbuf(stdin, NULL, _IONBF, 0);
-  setvbuf(stdout, NULL, _IONBF, 0);
+	setvbuf(stdin, NULL, _IONBF, 0);
+	setvbuf(stdout, NULL, _IONBF, 0);
 
-  HAL_UART_Receive_IT(&huart2, &rx, 1);
+	HAL_UART_Receive_IT(&huart2, &rx, 1);
+	__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, 0);
+	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
 
-  LCD_2in4_test();
+	HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+	HAL_ADC_Start(&hadc1);
+	HAL_ADCEx_Calibration_Start(&hadc2, ADC_SINGLE_ENDED);
+	HAL_ADC_Start(&hadc2);
+
+	LCD_2in4_test();
 
 #define SIZE 6
+	const Tone_t rick_roll[] = {
+			// "Never gonna give you up"
+			{NOTE_A4, 110}, {NOTE_B4, 110}, {NOTE_D5, 110}, {NOTE_B4, 110},
+			{NOTE_FS5, 350}, {NOTE_FS5, 350}, {NOTE_E5, 350},
+			{1, 200},
 
-  void Demo(void) {
-	  int x = 0, y = 0;
-	  int dx = 1, dy = 1;
-//	  LCD_2IN4_Clear(MAGENTA);
+			{0, 0} // End marker
+	};
+
+	void rickroll(void) {
+		for (int i = 0; rick_roll[i].frequency != 0; i++)
+		{
+			if (rick_roll[i].frequency == 0) {
+				Buzzer_SetTone(0, 0);
+			} else {
+				Buzzer_SetTone(rick_roll[i].frequency, 50);
+			}
+
+			HAL_Delay(rick_roll[i].duration_ms);
+
+			Buzzer_SetTone(0, 0);
+			HAL_Delay(10);
+		}
+	}
+
+	void randomroll(void) {
+		for (int i=0; i<10; i++) {
+			Buzzer_SetTone((rand()%1001)+200, 50);
+			HAL_Delay((rand()%200)+20);
+		}
+		Buzzer_SetTone(0,0);
+	}
+
+	void Demo(void) {
+		int x = 0, y = 0;
+		int dx = 1, dy = 1;
+		int wl_old = 0, wp_old = 0;
+		srand(42);
 
 		//paletka lewa
 		//100 - starting point pionowo
@@ -226,20 +319,32 @@ int main(void)
 
 			// Update position
 			x += dx;
-		  y += dy;
+			y += dy;
 
-		  // Bounce off edges
-		  if(x <= 0 || x + SIZE >= 240) dx=-dx;
-		  if(y <= 0 || y + SIZE >= 320) y=170;
+			// Bounce off edges
+			if(x <= 0 || x + SIZE >= 240) dx=-dx;
+			if(y <= 0 || y + SIZE >= 320) {
+				y = 170;
+				x = 120;
+				//randomroll();
+			}
 
-		  // Bounce off paletki
-		  if(y == 292 && x > wl-10 && x < wl+90) {
-			  dy = -dy;
-		  }
+			//printf("DEBUG: y = %d, x = %d, wl = %d, wp = %d\n", y, x, wl, wp);
 
-		  if(y == 28 && x > wp-10 && x < wp+90) {
-			  dy = -dy;
-		  }
+			// Bounce off paletki
+			if(y == 28 && x > wl-10 && x < wl+90) {
+				dy = -dy;
+				Buzzer_SetTone(1000, 50);
+				HAL_Delay(20);
+				Buzzer_SetTone(0,0);
+			}
+
+			if(y == 292 && x > wp-10 && x < wp+90) {
+				dy = -dy;
+				Buzzer_SetTone(1000, 50);
+				HAL_Delay(20);
+				Buzzer_SetTone(0,0);
+			}
 
 			// Draw new square
 			LCD_2IN4_SetWindow(x, y, x + SIZE, y + SIZE);
@@ -247,6 +352,18 @@ int main(void)
 
 
 			HAL_Delay(10);
+
+      //pomiar co 10 taktow gry
+			if(divider<1000) divider++;
+			else divider = 0;
+			if(divider%10 == 0) {
+				value = HAL_ADC_GetValue(&hadc1);
+				value2 = HAL_ADC_GetValue(&hadc2);
+				float voltage = value * 3.3f / 255.0f;
+				printf("\rADC: %d, ADC2: %d", value, value2);
+				wl = value;
+				wp = value2;
+			}
 		}
 	}
 	Demo();
@@ -265,7 +382,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+	}
   /* USER CODE END 3 */
 }
 
@@ -322,6 +439,156 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief Peripherals Common Clock Configuration
+  * @retval None
+  */
+void PeriphCommonClock_Config(void)
+{
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+
+  /** Initializes the peripherals clock
+  */
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_PLLSAI1;
+  PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_HSI;
+  PeriphClkInit.PLLSAI1.PLLSAI1M = 1;
+  PeriphClkInit.PLLSAI1.PLLSAI1N = 8;
+  PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV7;
+  PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV2;
+  PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV2;
+  PeriphClkInit.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_ADC1CLK;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_MultiModeTypeDef multimode = {0};
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Common config
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc1.Init.Resolution = ADC_RESOLUTION_8B;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.LowPowerAutoWait = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
+  hadc1.Init.OversamplingMode = DISABLE;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the ADC multi-mode
+  */
+  multimode.Mode = ADC_MODE_INDEPENDENT;
+  if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SingleDiff = ADC_SINGLE_ENDED;
+  sConfig.OffsetNumber = ADC_OFFSET_NONE;
+  sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief ADC2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC2_Init(void)
+{
+
+  /* USER CODE BEGIN ADC2_Init 0 */
+
+  /* USER CODE END ADC2_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC2_Init 1 */
+
+  /* USER CODE END ADC2_Init 1 */
+
+  /** Common config
+  */
+  hadc2.Instance = ADC2;
+  hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc2.Init.Resolution = ADC_RESOLUTION_8B;
+  hadc2.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc2.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc2.Init.LowPowerAutoWait = DISABLE;
+  hadc2.Init.ContinuousConvMode = ENABLE;
+  hadc2.Init.NbrOfConversion = 1;
+  hadc2.Init.DiscontinuousConvMode = DISABLE;
+  hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc2.Init.DMAContinuousRequests = DISABLE;
+  hadc2.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
+  hadc2.Init.OversamplingMode = DISABLE;
+  if (HAL_ADC_Init(&hadc2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_2;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SingleDiff = ADC_SINGLE_ENDED;
+  sConfig.OffsetNumber = ADC_OFFSET_NONE;
+  sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC2_Init 2 */
+
+  /* USER CODE END ADC2_Init 2 */
+
 }
 
 /**
@@ -450,6 +717,55 @@ static void MX_TIM3_Init(void)
 }
 
 /**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 0;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 65535;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+  HAL_TIM_MspPostInit(&htim4);
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -543,11 +859,11 @@ static void MX_GPIO_Init(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+	/* User can add his own implementation to report the HAL error return state */
+	__disable_irq();
+	while (1)
+	{
+	}
   /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT
@@ -561,7 +877,7 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
+	/* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
