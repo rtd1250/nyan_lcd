@@ -188,63 +188,44 @@ int main(void)
 	  int dx = 1, dy = 1;
 //	  LCD_2IN4_Clear(MAGENTA);
 
-	  //paletka lewa
-	  //100 - starting point pionowo
-	  //20 - starting point poziomo
-	  //szerokość: 8
-	  //długość: 80
-	  LCD_2IN4_SetWindow(wl, 20, wl+80, 20+8);
-	  for(int i=0; i<80*8; i++) {
-		  LCD_2IN4_WriteData_Word(WHITE);
-	  }
+		//paletka lewa
+		//100 - starting point pionowo
+		//20 - starting point poziomo
+		//szerokość: 8
+		//długość: 80
 
-	  //paletka prawa
-	  //100 - starting point pionowo
-	  //300 - starting point poziomo
-	  //szerokość: 8
-	  //długość: 80
-	  LCD_2IN4_SetWindow(wp, 300, wp+80, 300+8);
-	  for(int i=0; i<80*8; i++) {
-		  LCD_2IN4_WriteData_Word(WHITE);
-	  }
+		//paletka prawa
+		//100 - starting point pionowo
+		//300 - starting point poziomo
+		//szerokość: 8
+		//długość: 80
+		while(1) {
 
-	  while(1) {
-		  HAL_UART_Receive_IT(&huart2, &rx, 1);
+			//paletki
+			if(wl_old != wl) {
+				LCD_2IN4_SetWindow(wl_old, 20, wl_old+80, 20+8);
+				LCD_2IN4_WriteData_WordBuffer(BLACK, 80*8);
+			}
+			if(wp_old != wp) {
+				LCD_2IN4_SetWindow(wp_old, 300, wp_old+80, 300+8);
+				LCD_2IN4_WriteData_WordBuffer(BLACK, 80*8);
+			}
+			wl_old = wl; wp_old = wp;
 
-		  if(wl_old != wl) {
-			  LCD_2IN4_SetWindow(wl_old, 20, wl_old+80, 20+8);
-			  for(int i=0; i<80*8; i++) {
-				  LCD_2IN4_WriteData_Word(BLACK);
-			  }
-		  }
+			LCD_2IN4_SetWindow(wl, 20, wl+80, 20+8);
+			LCD_2IN4_WriteData_WordBuffer(WHITE, 80*8);
+			LCD_2IN4_SetWindow(wp, 300, wp+80, 300+8);
+			LCD_2IN4_WriteData_WordBuffer(WHITE, 80*8);
 
-		  if(wp_old != wp) {
-			  LCD_2IN4_SetWindow(wp_old, 300, wp_old+80, 300+8);
-			  for(int i=0; i<80*8; i++) {
-				  LCD_2IN4_WriteData_Word(BLACK);
-			  }
-		  }
+			//piłeczka
+			LCD_2IN4_SetWindow(x, y, x+SIZE, y+SIZE);
+			LCD_2IN4_WriteData_WordBuffer(WHITE, SIZE*SIZE);
 
-		  LCD_2IN4_SetWindow(wl, 20, wl+80, 20+8);
-		  for(int i=0; i<80*8; i++) {
-			  LCD_2IN4_WriteData_Word(WHITE);
-		  }
+			LCD_2IN4_SetWindow(x, y, x + SIZE, y + SIZE);
+			LCD_2IN4_WriteData_WordBuffer(BLACK, SIZE*SIZE);
 
-		  LCD_2IN4_SetWindow(wp, 300, wp+80, 300+8);
-		  for(int i=0; i<80*8; i++) {
-			  LCD_2IN4_WriteData_Word(WHITE);
-		  }
-
-		  LCD_2IN4_SetWindow(x, y, x+SIZE, y+SIZE);
-		  for(int i = 0; i < SIZE*SIZE; i++)
-		              LCD_2IN4_WriteData_Word(WHITE);
-
-		  LCD_2IN4_SetWindow(x, y, x + SIZE, y + SIZE);
-		  		  for(int i = 0; i < pow(SIZE,2); i++)
-		  		  			  LCD_2IN4_WriteData_Word(BLACK);
-
-		  // Update position
-		  x += dx;
+			// Update position
+			x += dx;
 		  y += dy;
 
 		  // Bounce off edges
@@ -260,25 +241,27 @@ int main(void)
 			  dy = -dy;
 		  }
 
-		  // Draw new square
-		  LCD_2IN4_SetWindow(x, y, x + SIZE, y + SIZE);
-		  for(int i = 0; i < pow(SIZE, 2); i++)
-			  LCD_2IN4_WriteData_Word(WHITE);
+			// Draw new square
+			LCD_2IN4_SetWindow(x, y, x + SIZE, y + SIZE);
+			LCD_2IN4_WriteData_WordBuffer(WHITE, SIZE*SIZE);
 
-		  draw_pixel(2,2,MAGENTA);
 
-		  HAL_Delay(1); // Adjust speed
-	  }
-  }
-  Demo();
+			HAL_Delay(10);
+		}
+	}
+	Demo();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-	  HAL_Delay(1000);
+	while (1)
+	{
+    //placeholder loop
+		LCD_2IN4_Clear(MAGENTA);
+		HAL_Delay(1000);
+		LCD_2IN4_Clear(WHITE);
+		HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

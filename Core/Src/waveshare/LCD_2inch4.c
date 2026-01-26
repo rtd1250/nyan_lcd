@@ -182,22 +182,77 @@ parameter	:
 	  Xend  :	End UWORD coordinates
 	  Yend  :	End UWORD coordinatesen
  ******************************************************************************/
-void LCD_2IN4_SetWindow(UWORD Xstart, UWORD Ystart, UWORD Xend, UWORD  Yend)
-{ 
-	LCD_2IN4_Write_Command(0x2a);
-	LCD_2IN4_WriteData_Byte(Xstart >>8);
-	LCD_2IN4_WriteData_Byte(Xstart & 0xff);
-	LCD_2IN4_WriteData_Byte((Xend - 1) >> 8);
-	LCD_2IN4_WriteData_Byte((Xend - 1) & 0xff);
+//void LCD_2IN4_SetWindow(UWORD Xstart, UWORD Ystart, UWORD Xend, UWORD  Yend)
+//{
+//	LCD_2IN4_Write_Command(0x2a);
+//	LCD_2IN4_WriteData_Byte(Xstart >>8);
+//	LCD_2IN4_WriteData_Byte(Xstart & 0xff);
+//	LCD_2IN4_WriteData_Byte((Xend - 1) >> 8);
+//	LCD_2IN4_WriteData_Byte((Xend - 1) & 0xff);
+//
+//	LCD_2IN4_Write_Command(0x2b);
+//	LCD_2IN4_WriteData_Byte(Ystart >>8);
+//	LCD_2IN4_WriteData_Byte(Ystart & 0xff);
+//	LCD_2IN4_WriteData_Byte((Yend - 1) >> 8);
+//	LCD_2IN4_WriteData_Byte((Yend - 1) & 0xff);
+//
+//	LCD_2IN4_Write_Command(0x2C);
+//}
 
-	LCD_2IN4_Write_Command(0x2b);
-	LCD_2IN4_WriteData_Byte(Ystart >>8);
-	LCD_2IN4_WriteData_Byte(Ystart & 0xff);
-	LCD_2IN4_WriteData_Byte((Yend - 1) >> 8);
-	LCD_2IN4_WriteData_Byte((Yend - 1) & 0xff);
+void LCD_2IN4_SetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
+{
+	uint8_t buf[4];
+    LCD_2IN4_CS_0;
 
-	LCD_2IN4_Write_Command(0x2C);
+    LCD_2IN4_DC_0;
+    DEV_SPI_WRITE(0x2A);   // Column addr set
+    LCD_2IN4_DC_1;
+    buf[0] = x0 >> 8;
+    buf[1] = x0 & 0xFF;
+    buf[2] = (x1 - 1) >> 8;
+    buf[3] = (x1 - 1) & 0xFF;
+    DEV_SPI_WriteBuffer(buf, sizeof(buf));
+
+    LCD_2IN4_DC_0;
+    DEV_SPI_WRITE(0x2B);   // Row addr set
+    LCD_2IN4_DC_1;
+    buf[0] = y0 >> 8;
+	buf[1] = y0 & 0xFF;
+	buf[2] = (y1 - 1) >> 8;
+	buf[3] = (y1 - 1) & 0xFF;
+	DEV_SPI_WriteBuffer(buf, sizeof(buf));
+
+    LCD_2IN4_DC_0;
+    DEV_SPI_WRITE(0x2C);   // Memory write
+    LCD_2IN4_DC_1;
+
+    LCD_2IN4_CS_1;
 }
+
+void LCD_2IN4_WriteData_WordBuffer(uint16_t color, uint32_t count)
+{
+    static uint8_t buf[64 * 2];  // 64 pixels at a time
+    uint32_t pixels;
+
+    // Fill buffer once
+    for (int i = 0; i < 64; i++) {
+        buf[2*i]   = color >> 8;
+        buf[2*i+1] = color & 0xFF;
+    }
+
+    LCD_2IN4_CS_0;
+    LCD_2IN4_DC_1;
+
+    while (count > 0) {
+        pixels = (count > 64) ? 64 : count;
+        HAL_SPI_Transmit(&hspi1, buf, pixels * 2, HAL_MAX_DELAY);
+        count -= pixels;
+    }
+
+    LCD_2IN4_CS_1;
+}
+
+
 
 /******************************************************************************
 function:	Settings window
@@ -228,17 +283,26 @@ function:	Clear screen function, refresh the screen to a certain color
 parameter	:
 	  Color :		The color you want to clear all the screen
  ******************************************************************************/
+//void LCD_2IN4_Clear(UWORD Color)
+//{
+//	UWORD i,j;
+//	LCD_2IN4_SetWindow(0, 0, LCD_2IN4_WIDTH, LCD_2IN4_HEIGHT);
+//
+//	DEV_Digital_Write(DEV_DC_PIN, 1);
+//	for(i = 0; i < LCD_2IN4_WIDTH; i++){
+//		for(j = 0; j < LCD_2IN4_HEIGHT; j++){
+//			LCD_2IN4_WriteData_Word(Color);
+//		}
+//	}
+//}
 void LCD_2IN4_Clear(UWORD Color)
 {
 	UWORD i,j;
 	LCD_2IN4_SetWindow(0, 0, LCD_2IN4_WIDTH, LCD_2IN4_HEIGHT);
 
 	DEV_Digital_Write(DEV_DC_PIN, 1);
-	for(i = 0; i < LCD_2IN4_WIDTH; i++){
-		for(j = 0; j < LCD_2IN4_HEIGHT; j++){
-			LCD_2IN4_WriteData_Word(Color);
-		}
-	}
+	uint16_t color = Color;
+	LCD_2IN4_WriteData_WordBuffer(color, LCD_2IN4_WIDTH*LCD_2IN4_HEIGHT);
 }
 
 /******************************************************************************
