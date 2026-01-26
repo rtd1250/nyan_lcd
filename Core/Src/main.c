@@ -244,7 +244,7 @@ int main(void)
   MX_ADC2_Init();
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim6);
+
 
 	setvbuf(stdin, NULL, _IONBF, 0);
 	setvbuf(stdout, NULL, _IONBF, 0);
@@ -311,12 +311,16 @@ int main(void)
 		//300 - starting point poziomo
 		//szerokość: 8
 		//długość: 80
+		HAL_TIM_Base_Start_IT(&htim6);
+
 		while(1) {
 
 			if(tick_flag)
 			{
 			    tick_flag = 0;
-			    printf("Time: %lus\r\n", game_time);
+			    uint32_t mins = game_time / 60;
+			    uint32_t secs = game_time % 60;
+			    printf("Czas gry: %02lu:%02lu \r\n", mins, secs);
 			}
 
 
