@@ -96,6 +96,8 @@ volatile int wp = 100;
 volatile uint32_t game_time = 0;
 volatile uint8_t tick_flag = 0;
 
+volatile uint8_t start_pressed = 0;
+
 int __io_putchar(int ch)
 {
 	if (ch == '\n') {
@@ -121,7 +123,12 @@ int __io_getchar(void) {
 	return ch;
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-	if(rx == 0x77) {
+
+    if(rx == 's' || rx == 'S') {
+        start_pressed = 1;
+    }
+
+    if(rx == 0x77) {
 		wl = wl+10;
 		if(wl+80>240) wl=160;
 		//		LCD_2IN4_SetWindow(wl, 20, wl+1, 20+8);
@@ -165,6 +172,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         tick_flag = 1;
     }
 }
+
+
 
 
 void Buzzer_SetTone(uint32_t freq_hz, uint8_t volume)
@@ -311,6 +320,16 @@ int main(void)
 		//300 - starting point poziomo
 		//szerokość: 8
 		//długość: 80
+
+		printf("Wciśnij [S] by rozpocząć rozgrywkę!\n");
+		while(!start_pressed) {
+		    HAL_Delay(50);
+		}
+
+		printf("Gra start!\n");
+
+
+
 		HAL_TIM_Base_Start_IT(&htim6);
 
 		while(1) {
