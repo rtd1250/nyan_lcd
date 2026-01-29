@@ -119,12 +119,39 @@ void Buzzer_SetTone(uint32_t freq_hz, uint8_t volume);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-const Tone_t nokia[] = {
+const Tone_t nokia_t[] = {
 
 		{NOTE_E5, 8}, {NOTE_D5, 8},{ NOTE_FS4, 4},{ NOTE_GS4, 4},
 		{NOTE_CS5, 8}, {NOTE_B4, 8}, {NOTE_D4, 4}, {NOTE_E4, 4},
 		{NOTE_B4, 8}, {NOTE_A4, 8}, {NOTE_CS4, 4}, {NOTE_E4, 4},
 		{NOTE_A4, 2}, {0,0}
+};
+
+int melody[] = {
+
+  // Cantina BAnd - Star wars
+  // Score available at https://musescore.com/user/6795541/scores/1606876
+  NOTE_B4,-4, NOTE_E5,-4, NOTE_B4,-4, NOTE_E5,-4,
+  NOTE_B4,8,  NOTE_E5,-4, NOTE_B4,8, REST,8,  NOTE_AS4,8, NOTE_B4,8,
+  NOTE_B4,8,  NOTE_AS4,8, NOTE_B4,8, NOTE_A4,8, REST,8, NOTE_GS4,8, NOTE_A4,8, NOTE_G4,8,
+  NOTE_G4,4,  NOTE_E4,-2,
+  NOTE_B4,-4, NOTE_E5,-4, NOTE_B4,-4, NOTE_E5,-4,
+  NOTE_B4,8,  NOTE_E5,-4, NOTE_B4,8, REST,8,  NOTE_AS4,8, NOTE_B4,8,
+
+  NOTE_A4,-4, NOTE_A4,-4, NOTE_GS4,8, NOTE_A4,-4,
+  NOTE_D5,8,  NOTE_C5,-4, NOTE_B4,-4, NOTE_A4,-4,
+  NOTE_B4,-4, NOTE_E5,-4, NOTE_B4,-4, NOTE_E5,-4,
+  NOTE_B4,8,  NOTE_E5,-4, NOTE_B4,8, REST,8,  NOTE_AS4,8, NOTE_B4,8,
+  NOTE_D5,4, NOTE_D5,-4, NOTE_B4,8, NOTE_A4,-4,
+  NOTE_G4,-4, NOTE_E4,-2,
+  NOTE_E4, 2, NOTE_G4,2,
+  NOTE_B4, 2, NOTE_D5,2,
+
+  NOTE_F5, -4, NOTE_E5,-4, NOTE_AS4,8, NOTE_AS4,8, NOTE_B4,4, NOTE_G4,4,
+
+
+
+
 };
 
 int __io_putchar(int ch)
@@ -187,15 +214,15 @@ void nokia(void) {
 	const uint32_t WHOLE_NOTE_DURATION = 1700;
 	uint32_t noteDuration = 0;
 
-	for (int i = 0; nokia[i].frequency != 0; i++)
+	for (int i = 0; nokia_t[i].frequency != 0; i++)
 	{
-		if(nokia[i].duration_ms > 0) {
-			noteDuration = WHOLE_NOTE_DURATION / nokia[i].duration_ms;
+		if(nokia_t[i].duration_ms > 0) {
+			noteDuration = WHOLE_NOTE_DURATION / nokia_t[i].duration_ms;
 		} else {
-			noteDuration = WHOLE_NOTE_DURATION / abs(nokia[i].duration_ms)*1.5;
+			noteDuration = WHOLE_NOTE_DURATION / abs(nokia_t[i].duration_ms)*1.5;
 		}
 
-		Buzzer_SetTone(nokia[i].frequency, 50);
+		Buzzer_SetTone(nokia_t[i].frequency, 50);
 
 		HAL_Delay(noteDuration * 0.9);
 
@@ -235,7 +262,7 @@ char* odczytaj(char *word, size_t size) {
 
 		HAL_UART_Transmit(&huart2, &value, 1, 10);
 		char tempStr[2] = {value, '\0'};
-		int current_x = 50 + (i * 20);
+		int current_x = 50 + (i * 16);
 		Paint_DrawString_EN (current_x, 155, tempStr, &Font24, WHITE, BLACK);
 
 		i++;
@@ -287,6 +314,9 @@ void punkty_up(int gracz) {
 		p2++;
 		sprintf(punkty2, "%d", p2);
 	}
+	Buzzer_SetTone(1500, 50);
+	HAL_Delay(20);
+	Buzzer_SetTone(0,0);
 
 	Paint_DrawString_EN (50, 10, punkty1, &Font24, BLACK, WHITE);
 	Paint_DrawString_EN (200, 10, punkty2, &Font24, BLACK, WHITE);
@@ -414,8 +444,8 @@ void pong(struct rankingList *ranking) {
 		if(divider<10) divider++;
 		else divider = 0;
 		if(divider%2 == 0) {
-			value = HAL_ADC_GetValue(&hadc1);
-			value2 = HAL_ADC_GetValue(&hadc2);
+			value = HAL_ADC_GetValue(&hadc2);
+			value2 = HAL_ADC_GetValue(&hadc1);
 			//float voltage = value * 3.3f / 255.0f;
 			//printf("\rADC: %d, ADC2: %d", value, value2);
 			wl = (value > 160) ? 160 : value;
